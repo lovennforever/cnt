@@ -1,0 +1,1 @@
+Fracture position (x) for tension_80000.xyz: 7

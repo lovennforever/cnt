@@ -1,0 +1,2 @@
+min_value= 2
+cnt_frcture point= 3

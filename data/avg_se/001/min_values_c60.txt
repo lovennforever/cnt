@@ -1,0 +1,5 @@
+80 Min y = 0, at x = 9
+60 Min y = 0, at x = 9
+20 Min y = 39, at x = 8
+40 Min y = 30, at x = 8
+0 Min y = 61, at x = 5

@@ -1,0 +1,79 @@
+
+# 1------general---------------
+units                             metal      #单位为lammps 中的metel 类型
+dimension                    3          #模拟的维度 三维
+boundary                    p p p      #周期边界条件 
+atom_style                  atomic   #原子类型自动
+atom_modify              map array sort 100 2.0
+neighbor                    3.0 bin
+neigh_modify            every 1 delay 0 check yes
+#2 -----global variable-------定义全局变量，方便统一修改；
+variable temperature equal 300
+variable tstep equal 0.001
+variable pressure equal 0
+variable thermalstep equal 100
+variable dumpstep equal 1000
+variable relaxtime equal 0
+variable totaltime equal 200000
+variable deformrate equal 5e-3
+#3 -------model------------
+#box tilt large
+read_data     1.lmp
+pair_style hybrid airebo 3.0 airebo 3.0 airebo 3.0 lj/cut 10 
+pair_coeff * * airebo 1 CH.airebo C NULL NULL
+pair_coeff * * airebo 2 CH.airebo NULL C NULL
+pair_coeff * * airebo 3 CH.airebo NULL NULL C
+pair_coeff 1 2 lj/cut 0.00456 3.431  
+pair_coeff 1 3 lj/cut 0.00456 3.431 
+pair_coeff 2 3 lj/cut 0.00456 3.431 
+ 
+# 5------minimize -----------
+min_style      sd
+minimize       1.0e-4 1.0e-6 100 1000
+#6----define computes------
+variable nums equal count(all) #计算原子数目
+variable toval equal lx*ly*16 #计算系统总体积，单层石墨烯厚度为0.335nm
+variable vol equal ${toval} #体系的初始体积
+variable vatom equal v_vol/v_nums #单个原子体积
+compute 1 all stress/atom NULL #计算体系中单原子应力
+compute xalls all reduce sum c_1[1]
+variable xstress equal (c_xalls)/(v_toval*10000)
+compute yalls all reduce sum c_1[2]
+variable ystress equal (c_yalls)/(v_toval*10000)
+compute zalls all reduce sum c_1[3]
+variable zstress equal (c_zalls)/(v_toval*10000)
+#7---------relaxation-------------------------
+timestep ${tstep}
+velocity all create ${temperature} 439866 units box dist gaussian
+dump   1 all atom 100 all-cy.lammpstrj
+#fix    1 all npt temp 300 300  0.1 aniso 0 0 10 drag 1  #三个方向独立控压
+fix  1 all npt temp ${temperature} ${temperature} 0.1 x ${pressure} ${pressure} 10 y ${pressure} ${pressure} 10
+compute  2 all pe/atom     
+compute  pe all reduce sum c_2
+variable PE equal "c_pe"
+fix    pe all print 100 "${PE} " file PE.txt screen no
+thermo  ${thermalstep}
+#thermo_style  custom step pe ke etotal lx ly lz
+run   ${relaxtime}
+#8 -------tension-----------------------------
+unfix  1
+undump  1
+unfix  pe
+reset_timestep 0
+fix avestress all ave/atom 1 ${dumpstep} ${dumpstep} c_1[1] c_1[2] c_1[3] c_1[4] c_1[5] c_1[6]
+
+#-----calculation of strain and Cumulative compression--------
+variable                tmp equal "lz"
+variable                L0 equal ${tmp}
+variable                strain equal "(lz - v_L0)/v_L0"
+variable                Cumulativels equal "(lz - v_L0)/10"  
+fix Step all print 100 "${strain} ${Cumulativels} ${zstress}" file grapoten.txt screen no
+
+dump 2 all custom ${dumpstep} tension.xyz type x y z f_avestress[1] f_avestress[2] f_avestress[3] f_avestress[4] f_avestress[5] f_avestress[6]
+
+fix  1 all npt temp ${temperature} ${temperature} 0.1 y ${pressure} ${pressure} 10 x ${pressure} ${pressure} 10
+
+thermo_style custom step pe ke etotal lx ly lz
+fix   2 all deform 1 z erate ${deformrate} remap x units box 
+fix   3 all ave/time 2 500 1000 v_xstress v_ystress v_zstress file pressure.out
+run   ${totaltime}

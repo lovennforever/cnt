@@ -1,0 +1,2 @@
+min_value= 14
+cnt_frcture point= 10
