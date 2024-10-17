@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Thu Oct 17 20:01:44 2024
+
+@author: Administrator
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Thu Oct 17 09:39:42 2024
 
 @author: Administrator
@@ -294,8 +301,8 @@ def C60DensityDataRelativeCoordinates(base_data_path):
                 print(f"All plots generated and modified data saved in directory: {root}")   
                 
                 
-def ExtractMinTimeC60(base_data_path):
-    # Extract numbers from the densith_min_values_c60.txt file
+def ProcessDensityFiles(base_data_path):
+    # Extract numbers from the density_min_values_c60.txt file
     def extract_numbers(file_path):
         with open(file_path, 'r') as file:
             lines = file.readlines()
@@ -304,14 +311,14 @@ def ExtractMinTimeC60(base_data_path):
         
         for line in lines:
             # Extract all numbers from the line
-            numbers = re.findall(r'(\d+)', line)
+            numbers = re.findall(r'\d+', line)
             
             if len(numbers) >= 3:
                 # Store the first three numbers as a tuple
-                results.append((numbers[0], numbers[1], numbers[2]))
+                results.append(tuple(numbers[:3]))
         
         return results
-    
+
     # Write extracted results to a new file
     def write_results_to_file(output_file_path, results):
         with open(output_file_path, 'w') as file:
@@ -321,39 +328,23 @@ def ExtractMinTimeC60(base_data_path):
             for values in results:
                 file.write(f"{' '.join(values)}\n")
 
-    if __name__ == "__main__":
-        
-        for root, dirs, files in os.walk(base_data_path):
-            if 'density_min_values_c60.txt' in files:
-                input_file_path = os.path.join(root, 'density_min_values_c60.txt')
-                output_file_path = os.path.join(root, 'density_min_values_c60_corresponding_x.txt')
-                
-                extracted_values = extract_numbers(input_file_path)
-                write_results_to_file(output_file_path, extracted_values)
-    
-                print(f"Extraction completed. Results saved to {output_file_path}")
-
-
-def ExtractFiledensity_min_values_c60_corresponding_xMinTimeC60(base_data_path):
-
-
+    # Process the file and select lines with minimum time difference
     def process_file(file_path):
         if not os.path.exists(file_path):
-            print(f"file {file_path} not exist！")
+            print(f"File {file_path} does not exist!")
             return
     
         with open(file_path, 'r') as file:
             lines = file.readlines()
     
         if len(lines) < 5:
-            print(f"file {file_path} line <5，can't process")
+            print(f"File {file_path} has less than 5 lines, cannot process.")
             return
         
         lines = lines[1:]
         
-        y_0_min = float(lines[1].split()[1])
-        
-        x_0 = float(lines[1].split()[0])
+        y_0_min = float(lines[0].split()[1])
+        x_0 = float(lines[0].split()[0])
     
         selected_lines = []
         min_diff = float('inf')
@@ -365,34 +356,39 @@ def ExtractFiledensity_min_values_c60_corresponding_xMinTimeC60(base_data_path):
     
             y_value = float(data[1])
     
-            # 
             if y_value < y_0_min:
-                
                 diff = abs(float(data[0]) - x_0)
-    
-                if diff < min_diff:
-                    min_diff = diff
-                    selected_lines = [data]
-                elif diff == min_diff:
+                if diff <= min_diff:
+                    if diff < min_diff:
+                        selected_lines.clear()
+                        min_diff = diff
                     selected_lines.append(data)
     
         if selected_lines:
-            # change name
+            # Change name
             output_file_path = file_path.replace('.txt', '_min_time_line.txt')
             with open(output_file_path, 'w') as output_file:
                 for line in selected_lines:
                     output_file.write(' '.join(line) + '\n')
     
-            print(f"data save in {output_file_path}")
+            print(f"Data saved in {output_file_path}")
         else:
-            print(f"in file {file_path} can't find。")
-    
+            print(f"In file {file_path} no suitable lines found.")
+
+    # Process all files in directory
     def process_all_files_in_directory(directory):
         for root, dirs, files in os.walk(directory):
-            if 'density_min_values_c60_corresponding_x.txt' in files:
-                file_path = os.path.join(root, 'density_min_values_c60_corresponding_x.txt')
-                print(f"处理文件: {file_path}")
-                process_file(file_path)
+            if 'density_min_values_c60.txt' in files:
+                input_file_path = os.path.join(root, 'density_min_values_c60.txt')
+                output_file_path = os.path.join(root, 'density_min_values_c60_corresponding_x.txt')
+                
+                extracted_values = extract_numbers(input_file_path)
+                write_results_to_file(output_file_path, extracted_values)
+    
+                print(f"Extraction completed. Results saved to {output_file_path}")
+                
+                # Process the newly created file
+                process_file(output_file_path)
 
     process_all_files_in_directory(base_data_path)
     
@@ -491,7 +487,6 @@ base_data_path = r'./data/avg_se'
 #CntDensityData(base_data_path) 
 #C60DensityData(base_data_path)
 #C60DensityDataRelativeCoordinates(base_data_path)
-#ExtractMinTimeC60(base_data_path) 
-#ExtractFiledensity_min_values_c60_corresponding_xMinTimeC60(base_data_path)
+#ProcessDensityFiles(base_data_path)
 #MergeC60CntMinXdata(base_data_path)
 #HistogramC60Cnt(base_data_path)
